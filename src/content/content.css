@@ -1,0 +1,120 @@
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"] {
+  --gcuic-gutter: 32px;
+  --gcuic-text-width: 1200px;
+  --gcuic-canvas-width: 1400px;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-conversation-container, .conversation-container, .gcuic-bottom-container, .bottom-container) {
+  width: 100% !important;
+  max-width: var(--gcuic-canvas-width) !important;
+  margin-inline: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-turn) {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-turn-frame) {
+  box-sizing: border-box;
+  width: min(
+    calc(100% - 2 * var(--gcuic-gutter)),
+    var(--gcuic-canvas-width)
+  ) !important;
+  max-width: var(--gcuic-canvas-width) !important;
+  margin-inline: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-width-path) {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-assistant-message, .gcuic-content-root) {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: var(--gcuic-canvas-width) !important;
+  margin-inline: 0 auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-text-block) {
+  box-sizing: border-box;
+  width: min(100%, var(--gcuic-text-width)) !important;
+  max-width: var(--gcuic-text-width) !important;
+  margin-inline: 0 auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-wide-block) {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: var(--gcuic-canvas-width) !important;
+  margin-inline: 0 !important;
+  overflow-x: auto;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-wide-block pre, .gcuic-wide-block code-block, .gcuic-wide-block table, .gcuic-wide-block [role="table"], .gcuic-wide-block .table-block, .gcuic-wide-block .katex-display) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-wide-block img, .gcuic-wide-block figure, .gcuic-wide-block svg, .gcuic-wide-block canvas) {
+  max-width: 100%;
+  height: auto;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-user-turn) {
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-user-message) {
+  margin-left: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-composer-frame) {
+  box-sizing: border-box;
+  width: min(
+    calc(100% - 2 * var(--gcuic-gutter)),
+    var(--gcuic-text-width)
+  ) !important;
+  max-width: var(--gcuic-text-width) !important;
+  margin-inline: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-composer-path) {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-composer, .input-area-container) {
+  box-sizing: border-box !important;
+  width: min(
+    calc(100% - 2 * var(--gcuic-gutter)),
+    var(--gcuic-text-width)
+  ) !important;
+  max-width: var(--gcuic-text-width) !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-inline: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.input-area-container input-area-v2, .input-area-container .input-area) {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
