@@ -100,13 +100,15 @@ namespace Gcuic {
     let assistantMessages = 0;
     let userMessages = 0;
 
-    const convContainer = mainRegion.querySelector<HTMLElement>(CONVERSATION_CONTAINER_SELECTOR);
-    if (convContainer !== null) {
+    for (const convContainer of mainRegion.querySelectorAll<HTMLElement>(
+      CONVERSATION_CONTAINER_SELECTOR,
+    )) {
       convContainer.classList.add("gcuic-conversation-container");
     }
 
-    const bottomContainer = mainRegion.querySelector<HTMLElement>(BOTTOM_CONTAINER_SELECTOR);
-    if (bottomContainer !== null) {
+    for (const bottomContainer of mainRegion.querySelectorAll<HTMLElement>(
+      BOTTOM_CONTAINER_SELECTOR,
+    )) {
       bottomContainer.classList.add("gcuic-bottom-container");
     }
 

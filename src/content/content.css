@@ -52,7 +52,7 @@ html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
 
 html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
   :where(.gcuic-wide-block) {
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   width: 100% !important;
   max-width: var(--gcuic-canvas-width) !important;
   margin-inline: 0 !important;
@@ -60,9 +60,36 @@ html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
 }
 
 html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
-  :where(.gcuic-wide-block pre, .gcuic-wide-block code-block, .gcuic-wide-block table, .gcuic-wide-block [role="table"], .gcuic-wide-block .table-block, .gcuic-wide-block .katex-display) {
-  max-width: 100%;
+  :where(
+    .gcuic-wide-block pre,
+    .gcuic-wide-block code-block,
+    .gcuic-wide-block table,
+    .gcuic-wide-block [role="table"],
+    .gcuic-wide-block .table-block,
+    .gcuic-wide-block .table-block-component,
+    .gcuic-wide-block .horizontal-scroll-wrapper,
+    .gcuic-wide-block .katex-display
+  ) {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-x: auto;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(.gcuic-wide-block table) {
+  display: table !important;
+  table-layout: auto !important;
+}
+
+html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]
+  :where(
+    .gcuic-wide-block .table-block,
+    .gcuic-wide-block .table-block.new-table-style,
+    .gcuic-wide-block .horizontal-scroll-wrapper
+  ) {
+  max-width: none !important;
+  width: 100% !important;
 }
 
 html[data-gcuic-enabled="true"][data-gcuic-layout="wide"]

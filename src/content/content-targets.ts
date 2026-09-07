@@ -1,10 +1,11 @@
 namespace Gcuic {
   const EXPLICIT_CONTENT_ROOT_SELECTOR = [
+    ".markdown",
+    ".markdown-main-panel",
+    '[class~="markdown"]',
     "message-content",
     ".message-content",
     ".text-content",
-    ".markdown",
-    '[class~="markdown"]',
     "[data-message-content]",
     '[class*="message-content"]',
   ].join(",");
@@ -38,6 +39,9 @@ namespace Gcuic {
     "code-block",
     '[role="table"]',
     ".table-block",
+    "table-block",
+    ".table-block-component",
+    ".horizontal-scroll-wrapper",
     '[class*="code-block"]',
     '[class*="formatted-code-block"]',
     ".katex-display",
@@ -53,6 +57,9 @@ namespace Gcuic {
     "code-block",
     '[role="table"]',
     ".table-block",
+    "table-block",
+    ".table-block-component",
+    ".horizontal-scroll-wrapper",
     '[class*="code-block"]',
     '[class*="formatted-code-block"]',
     ".katex-display",
@@ -113,11 +120,21 @@ namespace Gcuic {
   }
 
   function findContentRoot(message: HTMLElement): HTMLElement {
+    const markdownRoot = message.querySelector<HTMLElement>(
+      ".markdown, .markdown-main-panel, [class~='markdown']",
+    );
+    if (markdownRoot !== null) {
+      return markdownRoot;
+    }
+
     const explicit = message.querySelector<HTMLElement>(
       EXPLICIT_CONTENT_ROOT_SELECTOR,
     );
     if (explicit !== null) {
-      return explicit;
+      const innerMarkdown = explicit.querySelector<HTMLElement>(
+        ".markdown, .markdown-main-panel, [class~='markdown']",
+      );
+      return innerMarkdown ?? explicit;
     }
 
     let bestCandidate = message;
