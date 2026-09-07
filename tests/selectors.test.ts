@@ -30,6 +30,11 @@ namespace SelectorTests {
       readonly tagName: string,
       readonly attributes: Record<string, string> = {},
     ) {
+      if (attributes["class"]) {
+        for (const cls of attributes["class"].split(/\s+/)) {
+          if (cls) this.classList.add(cls);
+        }
+      }
       for (const [key, val] of Object.entries(attributes)) {
         if (key.startsWith("data-")) {
           const prop = key.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -76,6 +81,14 @@ namespace SelectorTests {
         const selector = raw.trim();
         if (/^[a-z][a-z0-9-]*$/.test(selector)) return this.tagName.toLowerCase() === selector.toLowerCase();
         if (selector.startsWith(".")) return this.classList.contains(selector.slice(1));
+        if (selector.startsWith('[class~="') && selector.endsWith('"]')) {
+          const cls = selector.slice(10, -2);
+          return this.classList.contains(cls);
+        }
+        if (selector.startsWith('[class*="') && selector.endsWith('"]')) {
+          const sub = selector.slice(10, -2);
+          return (this.attributes["class"] ?? "").includes(sub);
+        }
         if (selector === '[data-test-id="model-response"]') {
           return this.attributes["data-test-id"] === "model-response";
         }
@@ -175,5 +188,49 @@ namespace SelectorTests {
     Gcuic.clearTargetClasses(main as unknown as HTMLElement);
     assert.equal(modelTurn.classList.contains("gcuic-turn"), false);
     assert.equal(userTurn.classList.contains("gcuic-user-turn"), false);
+  });
+
+  test("tags Gemini markdown content root and nested table wrapper as wide-block", () => {
+    const main = new FakeElement("main");
+    // Gemini creates separate conversation-container per message
+    const userConv = main.append(new FakeElement("div", { class: "conversation-container" }));
+    const userTurn = userConv.append(new FakeElement("div", { class: "turn" }));
+    userTurn.append(new FakeElement("user-query"));
+
+    const modelConv = main.append(new FakeElement("div", { class: "conversation-container" }));
+    const modelResponse = modelConv.append(new FakeElement("model-response"));
+    const msgContent = modelResponse.append(new FakeElement("message-content"));
+    const markdown = msgContent.append(new FakeElement("div", { class: "markdown markdown-main-panel" }));
+
+    const textPara1 = markdown.append(new FakeElement("p"));
+    const tableWrapper = markdown.append(new FakeElement("div", { class: "horizontal-scroll-wrapper" }));
+    const tableBlockComp = tableWrapper.append(new FakeElement("div", { class: "table-block-component" }));
+    const responseEl = tableBlockComp.append(new FakeElement("response-element"));
+    const tableBlockEl = responseEl.append(new FakeElement("table-block"));
+    const tableBlockDiv = tableBlockEl.append(new FakeElement("div", { class: "table-block new-table-style" }));
+    tableBlockDiv.append(new FakeElement("table"));
+    const textPara2 = markdown.append(new FakeElement("p"));
+
+    const result = Gcuic.tagLayoutTargets(main as unknown as HTMLElement);
+    assert.equal(result.assistantMessages, 1);
+    assert.equal(result.userMessages, 1);
+
+    // Both conversation containers should be tagged
+    assert.equal(userConv.classList.contains("gcuic-conversation-container"), true);
+    assert.equal(modelConv.classList.contains("gcuic-conversation-container"), true);
+
+    // .markdown should be the content root, NOT message-content
+    assert.equal(markdown.classList.contains("gcuic-content-root"), true);
+    assert.equal(msgContent.classList.contains("gcuic-content-root"), false);
+
+    // Children of .markdown should be categorized into text-block and wide-block
+    assert.equal(textPara1.classList.contains("gcuic-text-block"), true);
+    assert.equal(textPara1.classList.contains("gcuic-wide-block"), false);
+
+    assert.equal(tableWrapper.classList.contains("gcuic-wide-block"), true);
+    assert.equal(tableWrapper.classList.contains("gcuic-text-block"), false);
+
+    assert.equal(textPara2.classList.contains("gcuic-text-block"), true);
+    assert.equal(textPara2.classList.contains("gcuic-wide-block"), false);
   });
 }
