@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Responsive Layout",
+  "version": "0.1.0",
+  "description": "Use wide desktop space for Gemini conversations without changing message content.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Gemini Responsive Layout",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
