@@ -1,10 +1,4 @@
 namespace GcuicPopup {
-  const DEFAULT_ENABLED = true;
-
-  function isBoolean(value: unknown): value is boolean {
-    return typeof value === "boolean";
-  }
-
   async function initialize(): Promise<void> {
     const toggle = document.querySelector<HTMLInputElement>("#layout-enabled");
     const status = document.querySelector<HTMLElement>("#layout-status");
@@ -13,15 +7,14 @@ namespace GcuicPopup {
       return;
     }
 
-    const stored = await chrome.storage.local.get({ enabled: DEFAULT_ENABLED });
-    const enabled = isBoolean(stored.enabled) ? stored.enabled : DEFAULT_ENABLED;
+    const enabled = await Gcuic.loadEnabled();
 
     toggle.checked = enabled;
     updateStatus(status, enabled);
 
     toggle.addEventListener("change", async () => {
       const nextEnabled = toggle.checked;
-      await chrome.storage.local.set({ enabled: nextEnabled });
+      await Gcuic.saveEnabled(nextEnabled);
       updateStatus(status, nextEnabled);
     });
   }
