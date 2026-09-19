@@ -18,6 +18,203 @@ namespace SelectorTests {
     contains(name: string): boolean {
       return this.values.has(name);
     }
+
+    toString(): string {
+      return Array.from(this.values).join(" ");
+    }
+  }
+
+  /**
+   * 単一の複合セレクタと、それに後続する結合子（> または空白）のペアを保持するデータ構造。
+   */
+  interface SelectorChainItem {
+    compound: string;
+    combinatorAfter: ">" | " " | null;
+  }
+
+  /**
+   * 複合セレクタと結合子（> または空白）の連続をパースして配列に分解する。
+   */
+  function parseSelectorChain(selector: string): SelectorChainItem[] {
+    const s = selector.trim();
+    const items: SelectorChainItem[] = [];
+    let currentCompound = "";
+    let i = 0;
+
+    while (i < s.length) {
+      const ch = s.charAt(i);
+      if (ch === "[") {
+        const closeIdx = s.indexOf("]", i);
+        if (closeIdx === -1) {
+          currentCompound += s.slice(i);
+          break;
+        }
+        currentCompound += s.slice(i, closeIdx + 1);
+        i = closeIdx + 1;
+        continue;
+      }
+
+      if (ch === ">") {
+        items.push({ compound: currentCompound.trim(), combinatorAfter: ">" });
+        currentCompound = "";
+        i++;
+        while (i < s.length && /\s/.test(s.charAt(i))) i++;
+        continue;
+      }
+
+      if (/\s/.test(ch)) {
+        let j = i;
+        while (j < s.length && /\s/.test(s.charAt(j))) j++;
+        if (j < s.length && s.charAt(j) === ">") {
+          items.push({ compound: currentCompound.trim(), combinatorAfter: ">" });
+          currentCompound = "";
+          i = j + 1;
+          while (i < s.length && /\s/.test(s.charAt(i))) i++;
+          continue;
+        }
+        if (currentCompound.trim().length > 0) {
+          items.push({ compound: currentCompound.trim(), combinatorAfter: " " });
+          currentCompound = "";
+        }
+        i = j;
+        continue;
+      }
+
+      currentCompound += ch;
+      i++;
+    }
+
+    if (currentCompound.trim().length > 0) {
+      items.push({ compound: currentCompound.trim(), combinatorAfter: null });
+    }
+
+    return items;
+  }
+
+  /**
+   * 1つの要素が単一の複合セレクタ（タグ、クラス、属性、:scope、*）に適合するか判定する。
+   */
+  function matchesCompound(compound: string, element: FakeElement, scope?: FakeElement): boolean {
+    let rest = compound.trim();
+
+    if (rest.startsWith(":scope")) {
+      if (scope ? element !== scope : false) {
+        return false;
+      }
+      rest = rest.slice(6);
+      if (rest.length === 0) return true;
+    }
+
+    if (rest.startsWith("*")) {
+      rest = rest.slice(1);
+      if (rest.length === 0) return true;
+    }
+
+    const tagMatch = rest.match(/^[a-zA-Z][a-zA-Z0-9-]*/);
+    if (tagMatch) {
+      if (element.tagName.toLowerCase() !== tagMatch[0].toLowerCase()) {
+        return false;
+      }
+      rest = rest.slice(tagMatch[0].length);
+    }
+
+    while (rest.length > 0) {
+      if (rest.startsWith(".")) {
+        const classMatch = rest.match(/^\.([a-zA-Z0-9_-]+)/);
+        const className = classMatch?.[1];
+        if (!className || !element.classList.contains(className)) {
+          return false;
+        }
+        rest = rest.slice(classMatch[0].length);
+        continue;
+      }
+
+      if (rest.startsWith("[")) {
+        const attrMatch = rest.match(/^\[([a-zA-Z0-9_-]+)(?:([~*]?=)(?:"([^"]*)"|'([^']*)'|([^\]\s]+))(\s+i)?)?\]/);
+        if (!attrMatch) return false;
+
+        const attrName = attrMatch[1];
+        if (!attrName) return false;
+
+        const operator = attrMatch[2];
+        const attrValue = attrMatch[3] ?? attrMatch[4] ?? attrMatch[5] ?? "";
+        const caseInsensitive = Boolean(attrMatch[6]);
+
+        let actualRaw: string | undefined;
+        if (attrName === "class") {
+          actualRaw = element.classList.toString() || element.attributes["class"];
+        } else {
+          actualRaw = element.attributes[attrName];
+        }
+
+        if (actualRaw === undefined) {
+          return false;
+        }
+
+        if (!operator) {
+          // 属性存在確認
+        } else if (operator === "=") {
+          const actual = caseInsensitive ? actualRaw.toLowerCase() : actualRaw;
+          const expected = caseInsensitive ? attrValue.toLowerCase() : attrValue;
+          if (actual !== expected) return false;
+        } else if (operator === "~=") {
+          if (attrName === "class") {
+            if (!element.classList.contains(attrValue)) return false;
+          } else {
+            const list = actualRaw.split(/\s+/);
+            if (!list.includes(attrValue)) return false;
+          }
+        } else if (operator === "*=") {
+          const actual = caseInsensitive ? actualRaw.toLowerCase() : actualRaw;
+          const expected = caseInsensitive ? attrValue.toLowerCase() : attrValue;
+          if (!actual.includes(expected)) return false;
+        }
+
+        rest = rest.slice(attrMatch[0].length);
+        continue;
+      }
+
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 結合子で結ばれたセレクタチェーンを要素とその親・祖先関係に対して右から左へ評価する。
+   */
+  function matchChain(chain: SelectorChainItem[], element: FakeElement, scope?: FakeElement): boolean {
+    if (chain.length === 0) return false;
+
+    const last = chain[chain.length - 1];
+    if (!last || !matchesCompound(last.compound, element, scope)) {
+      return false;
+    }
+
+    if (chain.length === 1) {
+      return true;
+    }
+
+    const prev = chain[chain.length - 2];
+    if (!prev) return false;
+
+    if (prev.combinatorAfter === ">") {
+      if (element.parentElement === null) return false;
+      return matchChain(chain.slice(0, -1), element.parentElement, scope);
+    }
+
+    if (prev.combinatorAfter === " ") {
+      let current = element.parentElement;
+      while (current !== null) {
+        if (matchChain(chain.slice(0, -1), current, scope)) {
+          return true;
+        }
+        current = current.parentElement;
+      }
+      return false;
+    }
+
+    return false;
   }
 
   class FakeElement {
@@ -54,13 +251,13 @@ namespace SelectorTests {
     }
 
     querySelector<T>(_selector: string): T | null {
-      return (this.querySelectorAll(_selector)[0] as T | undefined) ?? null;
+      return (this.querySelectorAll<T>(_selector)[0] as T | undefined) ?? null;
     }
 
     querySelectorAll<T>(selector: string): T[] {
       const matches: FakeElement[] = [];
       const visit = (element: FakeElement): void => {
-        if (element.matches(selector)) matches.push(element);
+        if (element.matches(selector, this)) matches.push(element);
         for (const child of element.children) visit(child);
       };
       for (const child of this.children) visit(child);
@@ -76,65 +273,11 @@ namespace SelectorTests {
       return null;
     }
 
-    matches(selectorList: string): boolean {
+    matches(selectorList: string, scope?: FakeElement): boolean {
       return selectorList.split(",").some((raw) => {
-        const selector = raw.trim();
-        if (/^[a-z][a-z0-9-]*$/.test(selector)) return this.tagName.toLowerCase() === selector.toLowerCase();
-        if (selector.startsWith(".")) return this.classList.contains(selector.slice(1));
-        if (selector.startsWith('[class~="') && selector.endsWith('"]')) {
-          const cls = selector.slice(10, -2);
-          return this.classList.contains(cls);
-        }
-        if (selector.startsWith('[class*="') && selector.endsWith('"]')) {
-          const sub = selector.slice(10, -2);
-          return (this.attributes["class"] ?? "").includes(sub);
-        }
-        if (selector === '[data-test-id="model-response"]') {
-          return this.attributes["data-test-id"] === "model-response";
-        }
-        if (selector === '[data-test-id="user-query"]') {
-          return this.attributes["data-test-id"] === "user-query";
-        }
-        if (selector === '[role="table"]') {
-          return this.attributes["role"] === "table";
-        }
-        if (selector === '[contenteditable="true"][role="textbox"]') {
-          return this.attributes["contenteditable"] === "true" && this.attributes["role"] === "textbox";
-        }
-        if (selector === '[contenteditable="true"]') {
-          return this.attributes["contenteditable"] === "true";
-        }
-        if (selector === ".input-area-container") {
-          return this.classList.contains("input-area-container");
-        }
-        if (selector === ".bottom-container form") {
-          return this.tagName === "form" && (this.parentElement?.classList.contains("bottom-container") ?? false);
-        }
-        if (selector === "chat-window > *") {
-          return this.parentElement?.tagName.toLowerCase() === "chat-window";
-        }
-        if (selector === ".conversation-container > *") {
-          return this.parentElement?.classList.contains("conversation-container") ?? false;
-        }
-        if (selector === '[data-testid*="research" i]') {
-          return (this.attributes["data-testid"]?.toLowerCase().includes("research")) ?? false;
-        }
-        if (selector === '[data-testid*="tool" i]' || selector === '[data-test-id*="tool" i]') {
-          return (this.attributes["data-testid"]?.toLowerCase().includes("tool") || this.attributes["data-test-id"]?.toLowerCase().includes("tool")) ?? false;
-        }
-        if (selector === ":scope > img") {
-          return this.tagName.toLowerCase() === "img";
-        }
-        if (selector === ":scope > svg") {
-          return this.tagName.toLowerCase() === "svg";
-        }
-        if (selector === ":scope > canvas") {
-          return this.tagName.toLowerCase() === "canvas";
-        }
-        if (selector === ":scope > code-block") {
-          return this.tagName.toLowerCase() === "code-block";
-        }
-        return false;
+        const chain = parseSelectorChain(raw);
+        if (chain.length === 0) return false;
+        return matchChain(chain, this, scope ?? this);
       });
     }
   }
@@ -142,7 +285,6 @@ namespace SelectorTests {
   test("tags model-response, user-query, conversation-container, and composer", () => {
     const main = new FakeElement("main");
     const convContainer = main.append(new FakeElement("div", { class: "conversation-container" }));
-    convContainer.classList.add("conversation-container");
 
     const userTurn = convContainer.append(new FakeElement("div", { class: "turn" }));
     const userMsg = userTurn.append(new FakeElement("user-query"));
@@ -157,9 +299,7 @@ namespace SelectorTests {
     content.append(new FakeElement("table"));
 
     const bottom = main.append(new FakeElement("div", { class: "bottom-container" }));
-    bottom.classList.add("bottom-container");
     const inputContainer = bottom.append(new FakeElement("div", { class: "input-area-container" }));
-    inputContainer.classList.add("input-area-container");
     const form = inputContainer.append(new FakeElement("form"));
     form.append(new FakeElement("rich-textarea"));
 
@@ -232,5 +372,57 @@ namespace SelectorTests {
 
     assert.equal(textPara2.classList.contains("gcuic-text-block"), true);
     assert.equal(textPara2.classList.contains("gcuic-wide-block"), false);
+  });
+
+  test("distinguishes wide blocks from text blocks accurately", () => {
+    const main = new FakeElement("main");
+    const conv = main.append(new FakeElement("div", { class: "conversation-container" }));
+    const turn = conv.append(new FakeElement("div", { class: "turn" }));
+    const modelMsg = turn.append(new FakeElement("model-response"));
+    const content = modelMsg.append(new FakeElement("message-content"));
+
+    // 1. content root 直下の img は wide
+    const directImg = content.append(new FakeElement("img", { src: "photo.jpg" }));
+
+    // 2. p の中の深い img は wide にならない（p 自身が text-block、内側に img があっても wide にならない）
+    const paraWithDeepImg = content.append(new FakeElement("p"));
+    const span = paraWithDeepImg.append(new FakeElement("span"));
+    span.append(new FakeElement("img", { src: "inline.jpg" }));
+
+    // 3. data-testid に "tool" を含む直下カードは wide
+    const toolCard = content.append(new FakeElement("div", { "data-testid": "search-tool-result" }));
+
+    // 4. 深い位置の code-block を含む直下コンテナは wide
+    const nestedCodeBlockContainer = content.append(new FakeElement("div", { class: "custom-code-wrapper" }));
+    const codeWrapperInner = nestedCodeBlockContainer.append(new FakeElement("div"));
+    codeWrapperInner.append(new FakeElement("code-block"));
+
+    // 5. 通常の段落は text-block
+    const normalPara = content.append(new FakeElement("p"));
+
+    const result = Gcuic.tagLayoutTargets(main as unknown as HTMLElement);
+    assert.equal(result.assistantMessages, 1);
+
+    assert.equal(content.classList.contains("gcuic-content-root"), true);
+
+    // directImg: wide-block
+    assert.equal(directImg.classList.contains("gcuic-wide-block"), true);
+    assert.equal(directImg.classList.contains("gcuic-text-block"), false);
+
+    // paraWithDeepImg: text-block (p の直下でない深い img は wide 判定を作らない)
+    assert.equal(paraWithDeepImg.classList.contains("gcuic-text-block"), true);
+    assert.equal(paraWithDeepImg.classList.contains("gcuic-wide-block"), false);
+
+    // toolCard: wide-block
+    assert.equal(toolCard.classList.contains("gcuic-wide-block"), true);
+    assert.equal(toolCard.classList.contains("gcuic-text-block"), false);
+
+    // nestedCodeBlockContainer: wide-block (深い位置の code-block を拾う)
+    assert.equal(nestedCodeBlockContainer.classList.contains("gcuic-wide-block"), true);
+    assert.equal(nestedCodeBlockContainer.classList.contains("gcuic-text-block"), false);
+
+    // normalPara: text-block
+    assert.equal(normalPara.classList.contains("gcuic-text-block"), true);
+    assert.equal(normalPara.classList.contains("gcuic-wide-block"), false);
   });
 }

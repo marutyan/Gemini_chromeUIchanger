@@ -1,8 +1,16 @@
 namespace Gcuic {
-  const EXPLICIT_CONTENT_ROOT_SELECTOR = [
+  /**
+   * Gemini の Markdown コンテンツ領域を特定するためのセレクタ。
+   * content root の直接探索および明示的コンテナ配下の探索で再利用する。
+   */
+  const MARKDOWN_SELECTOR = [
     ".markdown",
     ".markdown-main-panel",
     '[class~="markdown"]',
+  ].join(",");
+
+  const EXPLICIT_CONTENT_ROOT_SELECTOR = [
+    MARKDOWN_SELECTOR,
     "message-content",
     ".message-content",
     ".text-content",
@@ -29,52 +37,48 @@ namespace Gcuic {
     "code-block",
   ].join(",");
 
-  const WIDE_SELF_SELECTOR = [
+  /**
+   * content root 直下の子の中に深さを問わず含まれていれば、その子を wide にする要素セレクタ群。
+   * pre やテーブル、コードブロックなど横幅を要するブロック要素を定義する。
+   */
+  const WIDE_DESCENDANT_TARGETS = [
     "pre",
     "table",
     "figure",
+    "code-block",
+    '[role="table"]',
+    ".table-block",
+    "table-block",
+    ".table-block-component",
+    ".horizontal-scroll-wrapper",
+    '[class*="code-block"]',
+    '[class*="formatted-code-block"]',
+    ".katex-display",
+  ] as const;
+
+  /**
+   * content root 直下の子自身、またはその子の直接の子である場合だけ、その子を wide にする要素セレクタ群。
+   * 段落内の深い画像などの誤判定を防ぎつつ、直下の図版やツール結果カードを wide 化するために定義する。
+   */
+  const WIDE_DIRECT_CHILD_TARGETS = [
     "img",
     "svg",
     "canvas",
-    "code-block",
-    '[role="table"]',
-    ".table-block",
-    "table-block",
-    ".table-block-component",
-    ".horizontal-scroll-wrapper",
-    '[class*="code-block"]',
-    '[class*="formatted-code-block"]',
-    ".katex-display",
     '[data-testid*="research" i]',
     '[data-testid*="tool" i]',
     '[data-test-id*="tool" i]',
+  ] as const;
+
+  const WIDE_SELF_SELECTOR = [
+    ...WIDE_DESCENDANT_TARGETS,
+    ...WIDE_DIRECT_CHILD_TARGETS,
   ].join(",");
 
-  const WIDE_DESCENDANT_SELECTOR = [
-    "pre",
-    "table",
-    "figure",
-    "code-block",
-    '[role="table"]',
-    ".table-block",
-    "table-block",
-    ".table-block-component",
-    ".horizontal-scroll-wrapper",
-    '[class*="code-block"]',
-    '[class*="formatted-code-block"]',
-    ".katex-display",
-  ].join(",");
+  const WIDE_DESCENDANT_SELECTOR = WIDE_DESCENDANT_TARGETS.join(",");
 
-  const WIDE_DIRECT_CHILD_SELECTOR = [
-    ":scope > img",
-    ":scope > svg",
-    ":scope > canvas",
-    ":scope > code-block",
-    ':scope > [class*="code-block"]',
-    ':scope > [data-testid*="research" i]',
-    ':scope > [data-testid*="tool" i]',
-    ':scope > [data-test-id*="tool" i]',
-  ].join(",");
+  const WIDE_DIRECT_CHILD_SELECTOR = WIDE_DIRECT_CHILD_TARGETS.map(
+    (selector) => `:scope > ${selector}`,
+  ).join(",");
 
   export interface ContentTargets {
     textBlocks: number;
@@ -84,7 +88,7 @@ namespace Gcuic {
   export function tagAssistantContent(message: HTMLElement): ContentTargets {
     const root = findContentRoot(message);
     clearContentClasses(message);
-    root.classList.add("gcuic-content-root");
+    root.classList.add(CLASS_NAMES.contentRoot);
 
     let textBlocks = 0;
     let wideBlocks = 0;
@@ -93,10 +97,10 @@ namespace Gcuic {
       const child = childElement as HTMLElement;
 
       if (isWideContent(child)) {
-        child.classList.add("gcuic-wide-block");
+        child.classList.add(CLASS_NAMES.wideBlock);
         wideBlocks += 1;
       } else {
-        child.classList.add("gcuic-text-block");
+        child.classList.add(CLASS_NAMES.textBlock);
         textBlocks += 1;
       }
     }
@@ -107,11 +111,7 @@ namespace Gcuic {
   export function clearContentClasses(root: ParentNode): void {
     const rootClassList = (root as ParentNode & { classList?: DOMTokenList }).classList;
 
-    for (const className of [
-      "gcuic-content-root",
-      "gcuic-text-block",
-      "gcuic-wide-block",
-    ]) {
+    for (const className of CONTENT_CLASSES) {
       rootClassList?.remove(className);
       for (const element of root.querySelectorAll<HTMLElement>(`.${className}`)) {
         element.classList.remove(className);
@@ -120,9 +120,7 @@ namespace Gcuic {
   }
 
   function findContentRoot(message: HTMLElement): HTMLElement {
-    const markdownRoot = message.querySelector<HTMLElement>(
-      ".markdown, .markdown-main-panel, [class~='markdown']",
-    );
+    const markdownRoot = message.querySelector<HTMLElement>(MARKDOWN_SELECTOR);
     if (markdownRoot !== null) {
       return markdownRoot;
     }
@@ -131,9 +129,7 @@ namespace Gcuic {
       EXPLICIT_CONTENT_ROOT_SELECTOR,
     );
     if (explicit !== null) {
-      const innerMarkdown = explicit.querySelector<HTMLElement>(
-        ".markdown, .markdown-main-panel, [class~='markdown']",
-      );
+      const innerMarkdown = explicit.querySelector<HTMLElement>(MARKDOWN_SELECTOR);
       return innerMarkdown ?? explicit;
     }
 
