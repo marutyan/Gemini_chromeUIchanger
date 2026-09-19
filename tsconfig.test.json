@@ -7,10 +7,13 @@
   },
   "files": [
     "src/shared/layout-metrics.ts",
+    "src/content/class-names.ts",
+    "src/content/layout-style-writer.ts",
     "src/content/content-targets.ts",
     "src/content/selectors.ts",
     "tests/manifest.test.ts",
     "tests/layout-metrics.test.ts",
-    "tests/selectors.test.ts"
+    "tests/selectors.test.ts",
+    "tests/layout-style-writer.test.ts"
   ]
 }

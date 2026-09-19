@@ -1,4 +1,10 @@
 namespace Gcuic {
+  /**
+   * Gemini のメインコンテンツ領域を検出するためのセレクタ。
+   * main 要素または role="main" を持つ領域を一元的に定義する。
+   */
+  const MAIN_SELECTOR = "main, [role='main']";
+
   const ASSISTANT_SELECTOR = [
     "model-response",
     '[data-test-id="model-response"]',
@@ -23,12 +29,23 @@ namespace Gcuic {
     "article",
   ].join(",");
 
-  const CONVERSATION_CONTAINER_SELECTOR = ".conversation-container";
-  const BOTTOM_CONTAINER_SELECTOR = ".bottom-container";
+  /**
+   * 会話全体を包むコンテナのクラス名とセレクタ。
+   * メイン領域探索、ターン境界判定、幅拡張スタイルのターゲット指定に利用する。
+   */
+  const CONVERSATION_CONTAINER_CLASS = "conversation-container";
+  const CONVERSATION_CONTAINER_SELECTOR = `.${CONVERSATION_CONTAINER_CLASS}`;
+
+  /**
+   * 画面下部の入力欄一式を包むコンテナのクラス名とセレクタ。
+   * メイン領域探索およびコンポーザー特定に利用する。
+   */
+  const BOTTOM_CONTAINER_CLASS = "bottom-container";
+  const BOTTOM_CONTAINER_SELECTOR = `.${BOTTOM_CONTAINER_CLASS}`;
 
   const PRIMARY_COMPOSER_SELECTOR = [
     ".input-area-container",
-    ".bottom-container form",
+    `${BOTTOM_CONTAINER_SELECTOR} form`,
     "form",
   ].join(",");
 
@@ -39,24 +56,6 @@ namespace Gcuic {
     "textarea",
   ].join(",");
 
-  const TARGET_CLASSES = [
-    "gcuic-turn",
-    "gcuic-assistant-turn",
-    "gcuic-user-turn",
-    "gcuic-turn-frame",
-    "gcuic-width-path",
-    "gcuic-assistant-message",
-    "gcuic-user-message",
-    "gcuic-composer",
-    "gcuic-composer-frame",
-    "gcuic-composer-path",
-    "gcuic-conversation-container",
-    "gcuic-bottom-container",
-    "gcuic-content-root",
-    "gcuic-text-block",
-    "gcuic-wide-block",
-  ] as const;
-
   export interface TaggedTargets {
     assistantMessages: number;
     userMessages: number;
@@ -64,18 +63,18 @@ namespace Gcuic {
   }
 
   export function findMainRegion(root: ParentNode = document): HTMLElement | null {
-    const mainEl = root.querySelector<HTMLElement>("main, [role='main']");
+    const mainEl = root.querySelector<HTMLElement>(MAIN_SELECTOR);
     if (mainEl !== null && (mainEl.querySelector(MESSAGE_SELECTOR) !== null || findComposer(mainEl) !== null)) {
       return mainEl;
     }
 
     const message = root.querySelector<HTMLElement>(MESSAGE_SELECTOR);
     if (message !== null) {
-      const fromMessage = message.closest("main, [role='main']") as HTMLElement | null;
+      const fromMessage = message.closest(MAIN_SELECTOR) as HTMLElement | null;
       if (fromMessage !== null) {
         return fromMessage;
       }
-      const container = message.closest(".conversation-container") as HTMLElement | null;
+      const container = message.closest(CONVERSATION_CONTAINER_SELECTOR) as HTMLElement | null;
       if (container !== null) {
         return (container.parentElement as HTMLElement | null) ?? container;
       }
@@ -83,11 +82,11 @@ namespace Gcuic {
 
     const composer = findComposer(root);
     if (composer !== null) {
-      const fromComposer = composer.closest("main, [role='main']") as HTMLElement | null;
+      const fromComposer = composer.closest(MAIN_SELECTOR) as HTMLElement | null;
       if (fromComposer !== null) {
         return fromComposer;
       }
-      const bottom = composer.closest(".bottom-container") as HTMLElement | null;
+      const bottom = composer.closest(BOTTOM_CONTAINER_SELECTOR) as HTMLElement | null;
       if (bottom !== null) {
         return (bottom.parentElement as HTMLElement | null) ?? bottom;
       }
@@ -103,13 +102,13 @@ namespace Gcuic {
     for (const convContainer of mainRegion.querySelectorAll<HTMLElement>(
       CONVERSATION_CONTAINER_SELECTOR,
     )) {
-      convContainer.classList.add("gcuic-conversation-container");
+      convContainer.classList.add(CLASS_NAMES.conversationContainer);
     }
 
     for (const bottomContainer of mainRegion.querySelectorAll<HTMLElement>(
       BOTTOM_CONTAINER_SELECTOR,
     )) {
-      bottomContainer.classList.add("gcuic-bottom-container");
+      bottomContainer.classList.add(CLASS_NAMES.bottomContainer);
     }
 
     for (const message of mainRegion.querySelectorAll<HTMLElement>(MESSAGE_SELECTOR)) {
@@ -120,17 +119,21 @@ namespace Gcuic {
         continue;
       }
 
-      const role = isAssistant ? "assistant" : "user";
       const turn = findTurnElement(mainRegion, message);
       if (turn === null || !mainRegion.contains(turn)) {
         continue;
       }
 
       const frame = findDirectChildUnder(turn, message);
-      turn.classList.add("gcuic-turn", `gcuic-${role}-turn`);
-      frame?.classList.add("gcuic-turn-frame");
-      tagWidthPath(message.parentElement, frame);
-      message.classList.add(`gcuic-${role}-message`);
+      turn.classList.add(
+        CLASS_NAMES.turn,
+        isAssistant ? CLASS_NAMES.assistantTurn : CLASS_NAMES.userTurn,
+      );
+      frame?.classList.add(CLASS_NAMES.turnFrame);
+      tagClassPath(message.parentElement, frame, CLASS_NAMES.widthPath);
+      message.classList.add(
+        isAssistant ? CLASS_NAMES.assistantMessage : CLASS_NAMES.userMessage,
+      );
 
       if (isAssistant) {
         tagAssistantContent(message);
@@ -143,12 +146,12 @@ namespace Gcuic {
     const composer = findComposer(mainRegion);
     if (composer !== null) {
       const composerFrame = findComposerFrame(mainRegion, composer);
-      composer.classList.add("gcuic-composer");
-      composerFrame?.classList.add("gcuic-composer-frame");
+      composer.classList.add(CLASS_NAMES.composer);
+      composerFrame?.classList.add(CLASS_NAMES.composerFrame);
       tagClassPath(
         composer.parentElement,
         composerFrame,
-        "gcuic-composer-path",
+        CLASS_NAMES.composerPath,
       );
     }
 
@@ -182,7 +185,7 @@ namespace Gcuic {
 
       if (
         parent === mainRegion
-        || parent.classList.contains("conversation-container")
+        || parent.classList.contains(CONVERSATION_CONTAINER_CLASS)
         || parent.tagName.toLowerCase() === "chat-window"
       ) {
         turn = current;
@@ -253,13 +256,6 @@ namespace Gcuic {
     }
 
     return current?.parentElement === ancestor ? current : null;
-  }
-
-  function tagWidthPath(
-    start: HTMLElement | null,
-    stopExclusive: HTMLElement | null,
-  ): void {
-    tagClassPath(start, stopExclusive, "gcuic-width-path");
   }
 
   function tagClassPath(
