@@ -35,4 +35,4 @@
 
 ## Maintenance
 
-Gemini更新後に表示が効かない場合は、まず`src/content/selectors.ts`と`src/content/content-targets.ts`を確認する。selectorを追加する場合は、実DOMで複数種類の会話に共通することを確認し、模擬DOMテストを追加する。
+Gemini更新後に表示が効かない場合は、まず`src/content/selectors.ts`、`src/content/content-targets.ts`、およびクラス定義の`src/content/class-names.ts`を確認する。selectorを追加する場合は、実DOMで複数種類の会話に共通することを確認し、模擬DOMテストを追加する。
