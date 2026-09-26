@@ -1,5 +1,7 @@
 # Gemini Chrome UI Changer
 
+> **このリポジトリはアーカイブ済みです。** ChatGPT・Gemini・X向けの3つの拡張は [chrome_UI_changer](https://github.com/marutyan/chrome_UI_changer) に統合され、以後はそちらで保守します。
+
 Google Gemini (`https://gemini.google.com/*`) の会話画面を横長ディスプレイへ適応させる、ローカル利用向けChrome拡張です。
 
 ## Features
